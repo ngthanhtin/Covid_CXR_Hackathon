@@ -28,11 +28,12 @@ class config():
     input_size = 300
     worker = 2
     num_class = 2
+    fold = 4
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # optimize
-    LR = 1e-3
+    LR = 1e-4
     
     lr_decay_step = 30
     lr_decay_gamma =  0.25
-    weight_decay = 1e-4
+    weight_decay = 1e-5

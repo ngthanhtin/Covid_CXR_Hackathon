@@ -12,6 +12,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import sklearn.metrics
+from sklearn.model_selection import GroupKFold
 from tqdm import tqdm
 import random
 
@@ -94,11 +95,21 @@ def main():
     selected_columns['Prognosis'] = selected_columns['Prognosis'].apply(lambda class_id: mapping[class_id]) 
     image_df = selected_columns.copy()
     
-    train_df = image_df.sample(frac=0.8,random_state=200) #random state is a seed value
-    val_df = image_df.drop(train_df.index)
-    train_df = train_df.reset_index()
+    gkf  = GroupKFold(n_splits = 5)
+    image_df['fold'] = -1
+    for fold, (train_idx, val_idx) in enumerate(gkf.split(image_df, groups = image_df.ImageFile.tolist())):
+        image_df.loc[val_idx, 'fold'] = fold
+        
+    val_df = image_df[image_df.fold==config.fold]
+    train_df = image_df[image_df.fold!=config.fold]
+    print(len(val_df), len(train_df))
     val_df = val_df.reset_index()
-    
+    train_df = train_df.reset_index()
+    # Check label distribution
+    print(val_df.Prognosis.value_counts())
+    print(train_df.Prognosis.value_counts())
+
+
     train_dataset = CXR_Dataset(train_df, transform=get_augmentation(phase='train'))
     train_loader = DataLoader(dataset=train_dataset, batch_size=config.batch_size,
                               shuffle=True, num_workers=8, pin_memory=True)
@@ -145,7 +156,7 @@ def main():
 
     best_acc = 0.0
     for epoch in range(config.start_epoch, config.train_number_epochs):
-        print('*******tranning!*********')
+        print('*******training!*********')
         train(classifier, loss_func, train_loader, optimizer, epoch, scheduler)
         
         print('*******testing!*********')

@@ -86,4 +86,4 @@ def standardization(df, npics= 12):
 
 
 # check_im_size(selected_df)
-standardization(selected_df, npics=6)
+standardization(selected_df, npics=1)
