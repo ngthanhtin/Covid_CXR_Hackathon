@@ -80,7 +80,12 @@ class CXR_Dataset_Test(Dataset):
 #             image2 = recrop.convert('RGB')
         
 
-        image = Image.open(image_name).convert('RGB')
+        # image = Image.open(image_name).convert('RGB')
+        image = cv2.imread(image_name)
+        if image is None:
+            print(image_name)
+            
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         
         if self.transform is not None:
             image = self.transform(image)
@@ -141,10 +146,14 @@ class CXR_Dataset(Dataset):
 #             recrop = Image.fromarray(arr).resize((480,480))
 #             image2 = recrop.convert('RGB')
         
+        image = cv2.imread(image_name)
+        if image is None:
+            print(image_name)
+            
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-        image = Image.open(image_name).convert('RGB')
         if self.transform is not None:
-            image = self.transform(image)
+            image = self.transform(image=image)["image"]
 #             if image2 is not None:
 #                 image2 = self.transform(image2)
         

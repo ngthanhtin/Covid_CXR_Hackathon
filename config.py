@@ -3,7 +3,7 @@ import torch
 import os
 
 class config():
-    model_name = 'densenet121'
+    model_name = 'resnet50' #'densenet121'
     
     #data path
     path = '../TrainSet/'
@@ -23,7 +23,7 @@ class config():
     start_epoch = 0
     train_number_epochs = 20
     continue_train = False
-    batch_size = 32
+    batch_size = 16
     optimizer = 'adam'
     input_size = 300
     worker = 2
