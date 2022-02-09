@@ -52,7 +52,7 @@ val_loader = DataLoader(dataset=val_dataset, batch_size=config.batch_size,
                             shuffle=False, num_workers=8, pin_memory=True)
 
 
-background_ds = torch.zeros(200,3,224,224)
+background_ds = torch.zeros(200,3,256,256)
 for i,x in enumerate(train_dataset):
     background_ds[i,:,:,:] = x[0]
     if i == 199:
@@ -60,7 +60,7 @@ for i,x in enumerate(train_dataset):
 
 x = val_dataset[6]
 
-example = x[0].view(1,3,224,224)
+example = x[0].view(1,3,256,256)
 example.requires_grad = True
 
 label = x[1]

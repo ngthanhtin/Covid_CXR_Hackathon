@@ -85,5 +85,5 @@ def standardization(df, npics= 12):
     plt.show()
 
 
-# check_im_size(selected_df)
-standardization(selected_df, npics=1)
+check_im_size(selected_df)
+# standardization(selected_df, npics=1)
