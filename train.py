@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import sklearn.metrics
 from sklearn.model_selection import GroupKFold
+from sklearn.metrics import roc_auc_score, confusion_matrix, roc_curve, auc, f1_score, classification_report
 from tqdm import tqdm
 import random
 
@@ -66,6 +67,9 @@ def test(model, val_loader):
     correct=0.0
     val_data_size = len(val_loader.dataset)
     
+    gt_global = torch.FloatTensor()
+    pred_global = torch.FloatTensor()
+
     for batch_idx, (data, labels) in tqdm(enumerate(val_loader), total=len(val_loader)):
         if batch_idx % 2000 == 0:
             print('testing process:', batch_idx)
@@ -76,10 +80,18 @@ def test(model, val_loader):
         
         preds_labels= torch.max(pred,dim=-1)[1].cpu().numpy()
         gt_labels=torch.max(labels,dim=-1)[1].cpu().numpy()
-    
+
+        pred_global = torch.cat((pred_global,pred),0)
+        gt_global = torch.cat((gt_global, labels.data.cpu()), 0)
+
         correct+=float(np.sum(preds_labels==gt_labels))
 
-    return correct/val_data_size
+    preds_global_labels=torch.max(pred_global,dim=-1)[1].cpu().numpy()
+    gt_global_labels=torch.max(gt_global, dim=-1)[1].cpu().numpy()
+    f1_score = f1_score(gt_global_labels, preds_global_labels, average='weighted')
+    # print(classification_report(gt_global_labels,preds_global_labels,labels=[0,1],target_names=["SEVERE", "MILD"]))
+
+    return correct/val_data_size, f1_score
 
 def main():
     
@@ -152,7 +164,7 @@ def main():
         classifier.load_state_dict(checkpoint['model_state_dict'])
     
     classifier.to(config.device)
-    writer = SummaryWriter(config.logpath)
+    # writer = SummaryWriter(config.logpath)
 
     best_acc = 0.0
     for epoch in range(config.start_epoch, config.train_number_epochs):
@@ -160,9 +172,10 @@ def main():
         train(classifier, loss_func, train_loader, optimizer, epoch, scheduler)
         
         print('*******testing!*********')
-        acc = test(classifier, val_loader)
+        acc, f1_score = test(classifier, val_loader)
         
-        print("Epoch {}, acc: {}".format(epoch, acc))
+        print("Epoch {}, acc: {:.4f}, f1_score: {:.4f}".format(epoch, acc, f1_score))
+        
         # save
         if epoch % 10 == 0:
             torch.save({
@@ -182,7 +195,7 @@ def main():
                         }, config.path_model_pretrained+ '_best.pt')
 
 
-        writer.add_scalar('Accuracy', acc, epoch)
+        # writer.add_scalar('Accuracy', acc, epoch)
 
 
 

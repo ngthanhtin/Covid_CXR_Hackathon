@@ -8,7 +8,7 @@ def get_augmentation(phase):
         return transforms.Compose([
                             transforms.Resize(config.input_size),
                             transforms.RandomAffine(30, scale=(0.8,1.2), shear=[-15,15,-15,15]),
-                            transforms.CenterCrop(224),
+                            transforms.CenterCrop(256),
                             transforms.ToTensor(),
                             normalize,
                             ])
@@ -16,7 +16,7 @@ def get_augmentation(phase):
     elif phase in ['test','valid']:
         return transforms.Compose([
                             transforms.Resize(config.input_size),
-                            transforms.CenterCrop(224),
+                            transforms.CenterCrop(256),
                             transforms.ToTensor(),
                             normalize,
                                     ])
