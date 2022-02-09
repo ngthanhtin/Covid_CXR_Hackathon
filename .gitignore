@@ -1,0 +1,4 @@
+__pycache__/
+logs/
+notebooks/
+pretrained_models/
