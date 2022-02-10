@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(0, './')
 import torch
 
 from models import CXRClassifier
@@ -12,7 +14,7 @@ from config import config
 import torch
 from torch.utils.data import DataLoader
 
-from utils import PathExplainerTorch, monotonically_increasing_red
+from explainations.utils import PathExplainerTorch, monotonically_increasing_red
 from augmentation import get_augmentation
 
 ## obviously you'll want to replace this with the path to your own saved model
@@ -21,6 +23,7 @@ model_path = config.path_model_pretrained + '_best.pt'
 classifier = CXRClassifier(n_labels=config.N_CLASSES)
 checkpoint = torch.load(model_path)
 classifier.load_state_dict(checkpoint['model_state_dict'])
+classifier.eval()
 
 pet = PathExplainerTorch(classifier.cpu())
 
