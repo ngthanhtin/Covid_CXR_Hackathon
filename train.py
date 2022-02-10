@@ -88,10 +88,14 @@ def test(model, val_loader):
 
     preds_global_labels=torch.max(pred_global,dim=-1)[1].cpu().numpy()
     gt_global_labels=torch.max(gt_global, dim=-1)[1].cpu().numpy()
-    f1_score = f1_score(gt_global_labels, preds_global_labels, average='weighted')
+    f1 = f1_score(gt_global_labels, preds_global_labels, average='weighted')
+    tn, fp, fn, tp = confusion_matrix(gt_global_labels, preds_global_labels).ravel()
+    recall = tp/(tp+fn)
+    specificity = tn/(fp+tn)
+    balanced_acc = (recall+specificity)/2
     # print(classification_report(gt_global_labels,preds_global_labels,labels=[0,1],target_names=["SEVERE", "MILD"]))
 
-    return correct/val_data_size, f1_score
+    return correct/val_data_size, f1, recall, specificity, balanced_acc
 
 def main():
     
@@ -172,9 +176,10 @@ def main():
         train(classifier, loss_func, train_loader, optimizer, epoch, scheduler)
         
         print('*******testing!*********')
-        acc, f1_score = test(classifier, val_loader)
+        acc, f1, recall, specificity, balanced_acc = test(classifier, val_loader)
         
-        print("Epoch {}, acc: {:.4f}, f1_score: {:.4f}".format(epoch, acc, f1_score))
+        print("Epoch {}, acc: {:.4f}, f1_score: {:.4f}, recall: {:.4f}, specificity: {:.4f}, \
+            balanced acc: {:.4f}".format(epoch, acc, f1, recall, specificity, balanced_acc)) 
         
         # save
         if epoch % 10 == 0:
