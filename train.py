@@ -37,17 +37,6 @@ def seed_everything(seed):
     print(f'Setting all seeds to be {seed} to reproduce...')
 seed_everything(1024)
 
-def _find_index(ds, desired_label):
-    desired_index = None
-    for ilabel, label in enumerate(ds.labels):
-        if label.lower() == desired_label.lower():
-            desired_index = ilabel
-            break
-    if not desired_index is None:
-        return desired_index
-    else:
-        raise ValueError("Label {:s} not found.".format(desired_label))
-
 def train(model, loss_func, train_loader, optimizer, epoch, scheduler):
     model.train()
     for batch_idx, (data, labels) in tqdm(enumerate(train_loader),total=len(train_loader)):
