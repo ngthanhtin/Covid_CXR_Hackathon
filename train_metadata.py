@@ -20,8 +20,8 @@ import random
 import torch
 from torch.utils.data import DataLoader
 
-from models import CXRClassifier
-from dataset import CXR_Dataset_Test, CXR_Dataset, CXR_Dataset_Visualization
+from models import MetaCXR_Classifier
+from dataset import MetaCXR_Dataset
 from augmentation import get_augmentation
 from config import config
 from torch.utils.tensorboard import SummaryWriter
@@ -39,10 +39,10 @@ seed_everything(1024)
 
 def train(model, loss_func, train_loader, optimizer, epoch, scheduler):
     model.train()
-    for batch_idx, (data, labels) in tqdm(enumerate(train_loader),total=len(train_loader)):
-        data, labels = data.to(config.device), labels.to(config.device)
+    for batch_idx, (data, metadata, labels) in tqdm(enumerate(train_loader),total=len(train_loader)):
+        data, metadata, labels = data.to(config.device), metadata.to(config.device), labels.to(config.device)
         optimizer.zero_grad()
-        output = model(data)
+        output = model(data, metadata)
         loss = loss_func(output, labels)
         loss.backward()
         optimizer.step()
@@ -59,11 +59,11 @@ def test(model, val_loader):
     gt_global = torch.FloatTensor()
     pred_global = torch.FloatTensor()
 
-    for batch_idx, (data, labels) in tqdm(enumerate(val_loader), total=len(val_loader)):
+    for batch_idx, (data, metadata, labels) in tqdm(enumerate(val_loader), total=len(val_loader)):
         if batch_idx % 2000 == 0:
             print('testing process:', batch_idx)
-        data, labels = data.to(config.device), labels.to(config.device)
-        output = model(data)
+        data, metadata, labels = data.to(config.device), metadata.to(config.device), labels.to(config.device)
+        output = model(data, metadata)
 
         pred= output.data.cpu()
         
@@ -95,10 +95,9 @@ def main():
     # for col_name in metadata_df.columns: 
     #     print(col_name, metadata_df[col_name].count())
     metadata_df['ImageFile'] = image_path+metadata_df['ImageFile']
-    selected_columns = metadata_df[['ImageFile', 'Prognosis']]
     mapping = {'SEVERE': 0, 'MILD': 1}
-    selected_columns['Prognosis'] = selected_columns['Prognosis'].apply(lambda class_id: mapping[class_id]) 
-    image_df = selected_columns.copy()
+    metadata_df['Prognosis'] = metadata_df['Prognosis'].apply(lambda class_id: mapping[class_id]) 
+    image_df = metadata_df.copy()
     
     gkf  = GroupKFold(n_splits = 5)
     image_df['fold'] = -1
@@ -115,18 +114,18 @@ def main():
     print(train_df.Prognosis.value_counts())
 
 
-    train_dataset = CXR_Dataset(train_df, transform=get_augmentation(phase='train'))
+    train_dataset = MetaCXR_Dataset(train_df, transform=get_augmentation(phase='train'))
     train_loader = DataLoader(dataset=train_dataset, batch_size=config.batch_size,
                               shuffle=True, num_workers=8, pin_memory=True)
 
-    val_dataset = CXR_Dataset(val_df, transform=get_augmentation(phase='valid'))              
+    val_dataset = MetaCXR_Dataset(val_df, transform=get_augmentation(phase='valid'))              
     val_loader = DataLoader(dataset=val_dataset, batch_size=config.batch_size,
                              shuffle=False, num_workers=8, pin_memory=True)
 
     print('********************load data succeed!********************')
     print('********************load model********************')
 
-    classifier = CXRClassifier(n_labels=config.N_CLASSES).to(config.device)
+    classifier = MetaCXR_Classifier(n_labels=config.N_CLASSES, n_meta_features=16).to(config.device)
 
     loss_func = torch.nn.BCEWithLogitsLoss()
 
@@ -183,14 +182,10 @@ def main():
                     'optimizer_state_dict': optimizer.state_dict(),
                     'scheduler': scheduler,
                     'epoch': epoch
-                        }, config.path_model_pretrained+ '_best.pt')
+                        }, config.path_model_pretrained+ '_meta_best.pt')
 
 
         # writer.add_scalar('Accuracy', acc, epoch)
-
-
-
-
 
 if __name__ == "__main__":
     main()
