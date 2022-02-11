@@ -30,10 +30,10 @@ class MetaCXR_Classifier(nn.Module):
         super(MetaCXR_Classifier, self).__init__()
         self.n_meta_features = n_meta_features
         self.backbone = models.densenet121(pretrained=True)
-        # self.dropouts = nn.ModuleList([
-        #     nn.Dropout(0.5) for _ in range(5)
-        # ])
-        self.dropout = nn.Dropout(0.5)
+        self.dropouts = nn.ModuleList([
+            nn.Dropout(0.5) for _ in range(5)
+        ])
+        
         in_ch = self.backbone.classifier.in_features
     
         if n_meta_features > 0:
@@ -62,11 +62,11 @@ class MetaCXR_Classifier(nn.Module):
         if self.n_meta_features > 0:
             x_meta = self.meta(x_meta)
             x = torch.cat((x, x_meta), dim=1)
-        # for i, dropout in enumerate(self.dropouts):
-        #     if i == 0:
-        #         out = self.myfc(dropout(x))
-        #     else:
-        #         out += self.myfc(dropout(x))
-        # out /= len(self.dropouts)
-        out = self.myfc(self.dropout(x))
+        for i, dropout in enumerate(self.dropouts):
+            if i == 0:
+                out = self.myfc(dropout(x))
+            else:
+                out += self.myfc(dropout(x))
+        out /= len(self.dropouts)
+        
         return out
