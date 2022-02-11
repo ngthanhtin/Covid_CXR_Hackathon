@@ -21,7 +21,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from models import CXRClassifier
-from dataset import CXR_Dataset_Test, CXR_Dataset, CXR_Dataset_Visualization
+from dataset import CXR_Dataset_Test, CXR_Dataset
 from augmentation import get_augmentation
 from config import config
 from torch.utils.tensorboard import SummaryWriter
@@ -129,6 +129,7 @@ def main():
     classifier = CXRClassifier(n_labels=config.N_CLASSES).to(config.device)
 
     loss_func = torch.nn.BCEWithLogitsLoss()
+    # loss_func = torch.nn.CrossEntropyLoss()
 
     params_group = [{'params': classifier.parameters(), 'lr':float(config.LR)},]
 

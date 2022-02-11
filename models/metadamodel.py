@@ -30,10 +30,12 @@ class MetaCXR_Classifier(nn.Module):
         super(MetaCXR_Classifier, self).__init__()
         self.n_meta_features = n_meta_features
         self.backbone = models.densenet121(pretrained=True)
-        self.dropouts = nn.ModuleList([
-            nn.Dropout(0.5) for _ in range(5)
-        ])
-        in_ch = self.enet.classifier.in_features
+        # self.dropouts = nn.ModuleList([
+        #     nn.Dropout(0.5) for _ in range(5)
+        # ])
+        self.dropout = nn.Dropout(0.5)
+        in_ch = self.backbone.classifier.in_features
+    
         if n_meta_features > 0:
             self.meta = nn.Sequential(
                 nn.Linear(n_meta_features, n_meta_dim[0]),
@@ -45,22 +47,26 @@ class MetaCXR_Classifier(nn.Module):
                 Swish_Module(),
             )
             in_ch += n_meta_dim[1]
+            
         self.myfc = nn.Linear(in_ch, n_labels)
-        # self.enet.classifier = nn.Identity()
 
     def extract(self, x):
-        x = self.backbone(x)
+        x = self.backbone.features(x)
+        x = F.relu(x, inplace=True)
+        x = F.adaptive_avg_pool2d(x, (1, 1))
+        x = torch.flatten(x, 1)
         return x
 
-    def forward(self, x, x_meta=None):
+    def forward(self, x, x_meta):
         x = self.extract(x).squeeze(-1).squeeze(-1)
         if self.n_meta_features > 0:
             x_meta = self.meta(x_meta)
             x = torch.cat((x, x_meta), dim=1)
-        for i, dropout in enumerate(self.dropouts):
-            if i == 0:
-                out = self.myfc(dropout(x))
-            else:
-                out += self.myfc(dropout(x))
-        out /= len(self.dropouts)
+        # for i, dropout in enumerate(self.dropouts):
+        #     if i == 0:
+        #         out = self.myfc(dropout(x))
+        #     else:
+        #         out += self.myfc(dropout(x))
+        # out /= len(self.dropouts)
+        out = self.myfc(self.dropout(x))
         return out
