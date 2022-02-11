@@ -82,7 +82,7 @@ def test(model, val_loader):
     recall = tp/(tp+fn)
     specificity = tn/(fp+tn)
     balanced_acc = (recall+specificity)/2
-    # print(classification_report(gt_global_labels,preds_global_labels,labels=[0,1],target_names=["SEVERE", "MILD"]))
+    # print(classification_report(gt_global_labels,preds_global_labels,labels=[0,1,2,3]))
 
     return correct/val_data_size, f1, recall, specificity, balanced_acc
 
@@ -95,6 +95,7 @@ def main():
     # for col_name in metadata_df.columns: 
     #     print(col_name, metadata_df[col_name].count())
     metadata_df['ImageFile'] = image_path+metadata_df['ImageFile']
+    
     selected_columns = metadata_df[['ImageFile', 'Prognosis']]
     mapping = {'SEVERE': 0, 'MILD': 1}
     selected_columns['Prognosis'] = selected_columns['Prognosis'].apply(lambda class_id: mapping[class_id]) 

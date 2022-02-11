@@ -31,12 +31,26 @@ path = '../TrainSet/'
 image_path = path + 'TrainSet/'
 metadata_path = path + 'trainClinData.xls'
 metadata_df = pd.read_excel(metadata_path)
-# for col_name in metadata_df.columns: 
-#     print(col_name, metadata_df[col_name].count())
-# exit()
+
+def label_sub_labels(row):
+    if row['Prognosis'] == 'MILD' and row['Death'] == 0:
+        return 0
+    if row['Prognosis'] == 'MILD' and row['Death'] == 1:
+        return 1
+    if row['Prognosis'] == 'SEVERE' and row['Death'] == 0:
+        return 2
+    if row['Prognosis'] == 'SEVERE' and row['Death'] == 1:
+        return 3
+
+metadata_df['Sub_Label'] = metadata_df.apply(lambda row: label_sub_labels(row), axis=1)
+    
 mapping = {'SEVERE': 0, 'MILD': 1}
 metadata_df['Prognosis'] = metadata_df['Prognosis'].apply(lambda class_id: mapping[class_id]) 
 
+print(metadata_df['Sub_Label'].value_counts())
+# for col_name in metadata_df.columns: 
+#     print(col_name, metadata_df[col_name].count())
+exit()
 
 # related features as mentioned in the challenge
 related_features = ['Age', 'Sex', 'Temp_C', 'Cough', 'DifficultyInBreathing', 'WBC', 'CRP', 'Fibrinogen', \
@@ -44,7 +58,6 @@ related_features = ['Age', 'Sex', 'Temp_C', 'Cough', 'DifficultyInBreathing', 'W
 redundant_features = []
 
 #dop unecessary columns
-# metadata_df = metadata_df.drop(['Row_number', 'ImageFile', 'Hospital'], axis=1)
 for col_name in metadata_df.columns: 
     if col_name not in related_features:
         redundant_features.append(col_name)

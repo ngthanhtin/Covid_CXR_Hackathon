@@ -14,10 +14,11 @@ import cv2
 import numpy as np
 import pandas as pd
 import glob
+from config import config
 
 class CXR_Dataset_Test(Dataset):
     def __init__(self, df, transform=None, crop=False):
-        self.NUM_CLASSES = 2
+        self.NUM_CLASSES = config.CLASSES
         self.crop = crop
         # Set of images for each class
         self.image_names = df['ImageFile']
@@ -81,7 +82,7 @@ class CXR_Dataset_Test(Dataset):
 
 class CXR_Dataset(Dataset):
     def __init__(self, df, transform=None, crop=False):
-        self.NUM_CLASSES = 2
+        self.NUM_CLASSES = config.CLASSES
         self.crop = crop
         # Set of images for each class
         self.image_names = df['ImageFile']
@@ -148,7 +149,7 @@ class CXR_Dataset(Dataset):
 
 class MetaCXR_Dataset(Dataset):
     def __init__(self, df, transform=None, crop=False):
-        self.NUM_CLASSES = 2
+        self.NUM_CLASSES = config.CLASSES
         self.crop = crop
         # Set of images for each class
         self.image_names = df['ImageFile']
