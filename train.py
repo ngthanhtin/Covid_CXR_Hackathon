@@ -88,9 +88,9 @@ def test(model, val_loader):
 
 def main():
     
-    path = '../TrainSet/'
-    image_path = path + 'TrainSet/'
-    metadata_path = path + 'trainClinData.xls'
+    path = '../TrainSet_Preprocessed/'
+    image_path = path + 'TrainSet_Preprocessed/'
+    metadata_path = config.metadata_path
     metadata_df = pd.read_excel(metadata_path)
     # for col_name in metadata_df.columns: 
     #     print(col_name, metadata_df[col_name].count())
@@ -126,11 +126,6 @@ def main():
     print('********************load data succeed!********************')
     print('********************load model********************')
 
-
-    # generate log and checkpoint paths
-    
-    
-
     classifier = CXRClassifier(n_labels=config.N_CLASSES).to(config.device)
 
     loss_func = torch.nn.BCEWithLogitsLoss()
@@ -147,8 +142,10 @@ def main():
     elif config.optimizer == 'adamw':
         optimizer = torch.optim.AdamW(params_group, lr=float(config.LR), weight_decay = config.weight_decay)
 
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = config.lr_decay_step, gamma=config.lr_decay_gamma)
-
+    if config.scheduler == 'steprl':
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = config.lr_decay_step, gamma=config.lr_decay_gamma)
+    elif config.scheduler == 'cosine':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, config.train_number_epochs - config.start_epoch - 1)
 
 
     if config.continue_train==True:
@@ -171,13 +168,13 @@ def main():
             balanced acc: {:.4f}".format(epoch, acc, f1, recall, specificity, balanced_acc)) 
         
         # save
-        if epoch % 10 == 0:
-            torch.save({
-                    'model_state_dict': classifier.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'scheduler': scheduler,
-                    'epoch': epoch
-                        }, config.path_model_pretrained+ '_last.pt')
+        # if epoch % 10 == 0:
+        #     torch.save({
+        #             'model_state_dict': classifier.state_dict(),
+        #             'optimizer_state_dict': optimizer.state_dict(),
+        #             'scheduler': scheduler,
+        #             'epoch': epoch
+        #                 }, config.path_model_pretrained+ '_last.pt')
         
         if acc > best_acc:
             best_acc = acc
