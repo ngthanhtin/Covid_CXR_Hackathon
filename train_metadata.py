@@ -1,20 +1,30 @@
-from curses import meta
-import torch
+#!/usr/bin/env python
+#
+# train_covid.py
+#
+# Run ``python train_covid.py -h'' for information on using this script.
+#
+
 import os
+import sys
+
+import argparse
 import numpy as np
 import pandas as pd
+import sklearn.metrics
+from sklearn.model_selection import GroupKFold
+from sklearn.metrics import roc_auc_score, confusion_matrix, roc_curve, auc, f1_score, classification_report
+from tqdm import tqdm
 import random
 
-import xgboost as xgb
-from sklearn.svm import SVR
-from catboost import CatBoostRegressor
+import torch
+from torch.utils.data import DataLoader
 
-from sklearn.model_selection import StratifiedKFold, train_test_split, cross_val_score, cross_validate
-from sklearn.metrics import roc_auc_score, roc_curve, balanced_accuracy_score
-
-import seaborn as sns
-
-import matplotlib.pyplot as plt
+from models import CXRClassifier
+from dataset import CXR_Dataset_Test, CXR_Dataset, CXR_Dataset_Visualization
+from augmentation import get_augmentation
+from config import config
+from torch.utils.tensorboard import SummaryWriter
 
 def seed_everything(seed):
     random.seed(seed)
@@ -27,189 +37,160 @@ def seed_everything(seed):
     print(f'Setting all seeds to be {seed} to reproduce...')
 seed_everything(1024)
 
-path = '../TrainSet/'
-image_path = path + 'TrainSet/'
-metadata_path = path + 'trainClinData.xls'
-metadata_df = pd.read_excel(metadata_path)
-# for col_name in metadata_df.columns: 
-#     print(col_name, metadata_df[col_name].count())
-# exit()
-mapping = {'SEVERE': 0, 'MILD': 1}
-metadata_df['Prognosis'] = metadata_df['Prognosis'].apply(lambda class_id: mapping[class_id]) 
+def train(model, loss_func, train_loader, optimizer, epoch, scheduler):
+    model.train()
+    for batch_idx, (data, labels) in tqdm(enumerate(train_loader),total=len(train_loader)):
+        data, labels = data.to(config.device), labels.to(config.device)
+        optimizer.zero_grad()
+        output = model(data)
+        loss = loss_func(output, labels)
+        loss.backward()
+        optimizer.step()
+        if batch_idx % 20 == 0:
+            print("Epoch {} Iteration {}: Loss = {}".format(epoch, batch_idx, loss))
+    if scheduler is not None:
+        scheduler.step()
 
-# related features as mentioned in the challenge
-related_features = ['Age', 'Sex', 'Temp_C', 'Cough', 'DifficultyInBreathing', 'WBC', 'CRP', 'Fibrinogen', \
-    'LDH', 'D_dimer', 'Ox_percentage', 'PaO2', 'SaO2', 'pH', 'CardiovascularDisease', 'RespiratoryFailure', 'Prognosis']
-redundant_features = []
-
-#dop unecessary columns
-# metadata_df = metadata_df.drop(['Row_number', 'ImageFile', 'Hospital'], axis=1)
-for col_name in metadata_df.columns: 
-    if col_name not in related_features:
-        redundant_features.append(col_name)
-metadata_df = metadata_df.drop(redundant_features, axis=1)
-# 'Temp_C', 'Ox_percentage'
-# metadata_df =  metadata_df[['LDH', 'PaO2', 'CRP', 'Age', 'WBC', 'pH', 'D_dimer', 'SaO2', 'Fibrinogen', \
-#     'Sex', 'RespiratoryFailure', 'DifficultyInBreathing', 'CardiovascularDisease', 'Cough', 'Prognosis']]
-#drop targets
-X = metadata_df.drop('Prognosis', axis=1)
-y = metadata_df.Prognosis
-
-
-# taking holdout set for validating with stratified y
-X_train, X_test, y_train, y_test = train_test_split(X,
-                                                    y,
-                                                    test_size=0.2,
-                                                    stratify=y,
-                                                    random_state=42)
-
-# 5 fold stratify for cv
-cv = StratifiedKFold(5, shuffle=True, random_state=42)
-
-xg = xgb.XGBClassifier(
-    n_estimators=750,
-    min_child_weight=0.81,
-    learning_rate=0.025,
-    max_depth=2,
-    subsample=0.80,
-    colsample_bytree=0.42,
-    gamma=0.10,
-    random_state=42,
-    n_jobs=-1,
-)
-estimators = [xg]
-
-# cross validation scheme
-
-def model_check(X_train, y_train, estimators, cv):
-    model_table = pd.DataFrame()
-
-    row_index = 0
-    for est in estimators:
-
-        MLA_name = est.__class__.__name__
-        model_table.loc[row_index, 'Model Name'] = MLA_name
-
-        cv_results = cross_validate(est,
-                                    X_train,
-                                    y_train,
-                                    cv=cv,
-                                    scoring='balanced_accuracy',
-                                    return_train_score=True,
-                                    n_jobs=-1)
-
-        model_table.loc[row_index,
-                        'Train Balanced_Acc Mean'] = cv_results['train_score'].mean()
-        model_table.loc[row_index,
-                        'Test Balanced_Acc Mean'] = cv_results['test_score'].mean()
-        model_table.loc[row_index, 'Test Std'] = cv_results['test_score'].std()
-        model_table.loc[row_index, 'Time'] = cv_results['fit_time'].mean()
-
-        row_index += 1
-
-    model_table.sort_values(by=['Test Balanced_Acc Mean'],
-                            ascending=False,
-                            inplace=True)
-
-    return model_table
-# display cv results
-raw_models = model_check(X_train, y_train, estimators, cv)
-print((raw_models))
-
-exit()
-# fitting train data
-xg.fit(X_train, y_train)
-
-# predicting on holdout set
-validation = xg.predict_proba(X_test)[:, 1]
-
-# checking results on validation set
-print("Roc AUC Score: ", roc_auc_score(y_test, validation))
-
-# finding feature importances and creating new dataframe basen on them
-
-feature_importance = xg.get_booster().get_score(importance_type='weight')
-
-keys = list(feature_importance.keys())
-values = list(feature_importance.values())
-
-importance = pd.DataFrame(data=values, index=keys,
-                          columns=['score']).sort_values(by='score',
-                                                         ascending=False)
-fig, ax = plt.subplots(figsize=(20, 10))
-sns.barplot(x=importance.score.iloc[:20],
-            y=importance.index[:20],
-            orient='h',
-            palette='Reds_r')
-ax.set_title('Feature Importances')
-plt.show()
-
-# Adversarial Validation
-adv_train = X_train.copy()
-adv_test = X_test.copy()
-
-adv_train['dataset_label'] = 0
-adv_test['dataset_label'] = 1
-
-adv_master = pd.concat([adv_train, adv_test], axis=0)
-
-adv_X = adv_master.drop('dataset_label', axis=1)
-adv_y = adv_master['dataset_label']
-
-adv_X_train, adv_X_test, adv_y_train, adv_y_test = train_test_split(adv_X,
-                                                    adv_y,
-                                                    test_size=0.4,
-                                                    stratify=adv_y,
-                                                    random_state=42)
-
-xg_adv = xgb.XGBClassifier(
-    random_state=42,
-    n_jobs=-1,
-)
-
-# Fitting train data
-
-xg_adv.fit(adv_X_train, adv_y_train)
-
-# Predicting on holdout set
-validation = xg_adv.predict_proba(adv_X_test)[:,1]
-
-def plot_roc_feat(y_trues, y_preds, labels, est, x_max=1.0):
-    fig, ax = plt.subplots(1,2, figsize=(16,6))
-    for i, y_pred in enumerate(y_preds):
-        y_true = y_trues[i]
-        fpr, tpr, thresholds = roc_curve(y_true, y_pred)
-        auc = roc_auc_score(y_true, y_pred)
-        ax[0].plot(fpr, tpr, label='%s; AUC=%.3f' % (labels[i], auc), marker='o', markersize=1)
-
-    ax[0].legend()
-    ax[0].grid()
-    ax[0].plot(np.linspace(0, 1, 20), np.linspace(0, 1, 20), linestyle='--')
-    ax[0].set_title('ROC curve')
-    ax[0].set_xlabel('False Positive Rate')
-    ax[0].set_xlim([-0.01, x_max])
-    _ = ax[0].set_ylabel('True Positive Rate')
+def test(model, val_loader):
+    model.eval()
+    correct=0.0
+    val_data_size = len(val_loader.dataset)
     
+    gt_global = torch.FloatTensor()
+    pred_global = torch.FloatTensor()
+
+    for batch_idx, (data, labels) in tqdm(enumerate(val_loader), total=len(val_loader)):
+        if batch_idx % 2000 == 0:
+            print('testing process:', batch_idx)
+        data, labels = data.to(config.device), labels.to(config.device)
+        output = model(data)
+
+        pred= output.data.cpu()
+        
+        preds_labels= torch.max(pred,dim=-1)[1].cpu().numpy()
+        gt_labels=torch.max(labels,dim=-1)[1].cpu().numpy()
+
+        pred_global = torch.cat((pred_global,pred),0)
+        gt_global = torch.cat((gt_global, labels.data.cpu()), 0)
+
+        correct+=float(np.sum(preds_labels==gt_labels))
+
+    preds_global_labels=torch.max(pred_global,dim=-1)[1].cpu().numpy()
+    gt_global_labels=torch.max(gt_global, dim=-1)[1].cpu().numpy()
+    f1 = f1_score(gt_global_labels, preds_global_labels, average='weighted')
+    tn, fp, fn, tp = confusion_matrix(gt_global_labels, preds_global_labels).ravel()
+    recall = tp/(tp+fn)
+    specificity = tn/(fp+tn)
+    balanced_acc = (recall+specificity)/2
+    # print(classification_report(gt_global_labels,preds_global_labels,labels=[0,1],target_names=["SEVERE", "MILD"]))
+
+    return correct/val_data_size, f1, recall, specificity, balanced_acc
+
+def main():
     
-    feature_importance = est.get_booster().get_score(importance_type='weight')
-
-    keys = list(feature_importance.keys())
-    values = list(feature_importance.values())
-
-    importance = pd.DataFrame(data=values, index=keys,
-                          columns=['score']).sort_values(by='score',
-                                                         ascending=False)
+    path = '../TrainSet_Preprocessed/'
+    image_path = path + 'TrainSet_Preprocessed/'
+    metadata_path = config.metadata_path
+    metadata_df = pd.read_excel(metadata_path)
+    # for col_name in metadata_df.columns: 
+    #     print(col_name, metadata_df[col_name].count())
+    metadata_df['ImageFile'] = image_path+metadata_df['ImageFile']
+    selected_columns = metadata_df[['ImageFile', 'Prognosis']]
+    mapping = {'SEVERE': 0, 'MILD': 1}
+    selected_columns['Prognosis'] = selected_columns['Prognosis'].apply(lambda class_id: mapping[class_id]) 
+    image_df = selected_columns.copy()
     
-    sns.barplot(x=importance.score.iloc[:20],
-            y=importance.index[:20],
-            orient='h',
-            palette='Reds_r', ax=ax[1])
-    ax[1].set_title('Feature Importances')
-    plt.show()
+    gkf  = GroupKFold(n_splits = 5)
+    image_df['fold'] = -1
+    for fold, (train_idx, val_idx) in enumerate(gkf.split(image_df, groups = image_df.ImageFile.tolist())):
+        image_df.loc[val_idx, 'fold'] = fold
+        
+    val_df = image_df[image_df.fold==config.fold]
+    train_df = image_df[image_df.fold!=config.fold]
+    print(len(val_df), len(train_df))
+    val_df = val_df.reset_index()
+    train_df = train_df.reset_index()
+    # Check label distribution
+    print(val_df.Prognosis.value_counts())
+    print(train_df.Prognosis.value_counts())
 
-plot_roc_feat(
-    [adv_y_test],
-    [validation],
-    ['Baseline'],
-    xg_adv
-)
+
+    train_dataset = CXR_Dataset(train_df, transform=get_augmentation(phase='train'))
+    train_loader = DataLoader(dataset=train_dataset, batch_size=config.batch_size,
+                              shuffle=True, num_workers=8, pin_memory=True)
+
+    val_dataset = CXR_Dataset(val_df, transform=get_augmentation(phase='valid'))              
+    val_loader = DataLoader(dataset=val_dataset, batch_size=config.batch_size,
+                             shuffle=False, num_workers=8, pin_memory=True)
+
+    print('********************load data succeed!********************')
+    print('********************load model********************')
+
+    classifier = CXRClassifier(n_labels=config.N_CLASSES).to(config.device)
+
+    loss_func = torch.nn.BCEWithLogitsLoss()
+
+    params_group = [{'params': classifier.parameters(), 'lr':float(config.LR)},]
+
+
+    if config.optimizer =='sgd':
+        optimizer = torch.optim.SGD(params_group, lr=float(config.LR), weight_decay = config.weight_decay, momentum = 0.9, nesterov=True)
+    elif config.optimizer == 'adam':
+        optimizer = torch.optim.Adam(params_group, lr=float(config.LR), weight_decay = config.weight_decay)
+    elif config.optimizer == 'rmsprop':
+        optimizer = torch.optim.RMSprop(params_group, lr=float(config.LR), alpha=0.9, weight_decay = config.weight_decay, momentum = 0.9)
+    elif config.optimizer == 'adamw':
+        optimizer = torch.optim.AdamW(params_group, lr=float(config.LR), weight_decay = config.weight_decay)
+
+    if config.scheduler == 'steprl':
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size = config.lr_decay_step, gamma=config.lr_decay_gamma)
+    elif config.scheduler == 'cosine':
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, config.train_number_epochs - config.start_epoch - 1)
+
+
+    if config.continue_train==True:
+        print('loading status...')
+        checkpoint = torch.load(config.resume_model)
+        classifier.load_state_dict(checkpoint['model_state_dict'])
+    
+    classifier.to(config.device)
+    # writer = SummaryWriter(config.logpath)
+
+    best_acc = 0.0
+    for epoch in range(config.start_epoch, config.train_number_epochs):
+        print('*******training!*********')
+        train(classifier, loss_func, train_loader, optimizer, epoch, scheduler)
+        
+        print('*******testing!*********')
+        acc, f1, recall, specificity, balanced_acc = test(classifier, val_loader)
+        
+        print("Epoch {}, acc: {:.4f}, f1_score: {:.4f}, recall: {:.4f}, specificity: {:.4f}, \
+            balanced acc: {:.4f}".format(epoch, acc, f1, recall, specificity, balanced_acc)) 
+        
+        # save
+        # if epoch % 10 == 0:
+        #     torch.save({
+        #             'model_state_dict': classifier.state_dict(),
+        #             'optimizer_state_dict': optimizer.state_dict(),
+        #             'scheduler': scheduler,
+        #             'epoch': epoch
+        #                 }, config.path_model_pretrained+ '_last.pt')
+        
+        if acc > best_acc:
+            best_acc = acc
+            torch.save({
+                    'model_state_dict': classifier.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'scheduler': scheduler,
+                    'epoch': epoch
+                        }, config.path_model_pretrained+ '_best.pt')
+
+
+        # writer.add_scalar('Accuracy', acc, epoch)
+
+
+
+
+
+if __name__ == "__main__":
+    main()
