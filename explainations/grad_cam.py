@@ -226,8 +226,8 @@ def show_grad_cam(image_path):
 
     """
     #load model
-    model_path = config.path_model_pretrained + '_best_07_epoch7.pt'
-
+    model_path = config.path_model_pretrained + '_best_073_epoch19.pt'
+    
     model = CXRClassifier(n_labels=config.N_CLASSES)
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -260,9 +260,9 @@ def show_grad_cam(image_path):
     cam_gb = deprocess_image(cam_mask*gb)
     gb = deprocess_image(gb)
 
-    # cv2.imwrite("cam.jpg", cam)
-    # cv2.imwrite('gb.jpg', gb)
-    # cv2.imwrite('cam_gb.jpg', cam_gb)
+    cv2.imwrite("cam.jpg", cam)
+    cv2.imwrite('gb.jpg', gb)
+    cv2.imwrite('cam_gb.jpg', cam_gb)
 
     fig, ax = plt.subplots(1,2)
     img = cv2.imread(image_path)
