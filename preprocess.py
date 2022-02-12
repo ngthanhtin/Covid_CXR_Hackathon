@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import random
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -53,47 +54,41 @@ def global_contrast_normalization(image):
 
     return XX
 
-def test_batch():
-    # dataset
-    path = '../TrainSet/'
-    image_path = path + 'TrainSet/'
-    metadata_path = path + 'trainClinData.xls'
-    metadata_df = pd.read_excel(metadata_path)
-    metadata_df['ImageFile'] = image_path+metadata_df['ImageFile']
-    selected_columns = metadata_df[['ImageFile', 'Prognosis']]
-    mapping = {'SEVERE': 0, 'MILD': 1}
-    selected_columns['Prognosis'] = selected_columns['Prognosis'].apply(lambda class_id: mapping[class_id]) 
-    image_df = selected_columns.copy()
+def rotateImage(image, angle):
+    row,col = image.shape
+    center=tuple(np.array([row,col])/2)
+    rot_mat = cv2.getRotationMatrix2D(center,angle,1.0)
+    new_image = cv2.warpAffine(image, rot_mat, (col,row))
+    return new_image
 
-    train_df = image_df.sample(frac=0.8,random_state=200) #random state is a seed value
-    val_df = image_df.drop(train_df.index)
-    train_df = train_df.reset_index()
-    val_df = val_df.reset_index()
+def randomZoom(image):
+    x=random.randint(30,140)
+    y=random.randint(0,20)
+    crop_img = image[x:x+224, y:y+224]
+    crop_img = cv2.resize(crop_img, (224, 224))
+    return crop_img
 
-    aug = A.Compose([A.Resize(height=256, width=256), ToTensorV2()])
-    batch_size = 5
-    dataset = CXR_Dataset(train_df, transform=aug)
-    loader = DataLoader(dataset=dataset, batch_size=batch_size,
-                                shuffle=False, num_workers=8, pin_memory=True)
+def hist_rotate_zoom_aug():
+    save_path = '/home/hci-a4000/TIN/covid2022/TrainSet_Preprocessed/TrainSet_Preprocessed/'
+    ori_data_path = '/home/hci-a4000/TIN/covid2022/TrainSet/TrainSet/'
 
-
-
-    for batch_idx, (data, labels) in enumerate(loader):
-        x = data
-        example = x.view(batch_size,3,256,256).reshape(1,-1).numpy()
-
-        gcn_numpy = np.asarray([global_contrast_normalization(x) for x in example]).reshape((batch_size,256,256,3))
-
-        print('Before GCN Data Mean and STD')
-        print(example.mean(-1).mean(),example.std(-1).mean() )
-        showimages(example.reshape((batch_size,256,256,3)),coloums=5,row=1,col=True)
-
-        print('After GCN Data Mean and STD - VIEWING IMAGE IS NORMALIZED')
-        print(gcn_numpy.mean(axis=(1,2,3)).mean(),gcn_numpy.std(axis=(1,2,3)).mean() )
-        gcn_numpy = (gcn_numpy - gcn_numpy.min(axis=(1,2))[:,None,None,:] )/(gcn_numpy.max(axis=(1,2))-gcn_numpy.min(axis=(1,2)))[:,None,None,:]
-        showimages(gcn_numpy.reshape((batch_size,256,256,3)),coloums=5,row=1,col=True)
-
-        exit()
+    
+    onlyfiles = [f for f in listdir(ori_data_path) if isfile(join(ori_data_path, f))]
+    for f in onlyfiles:
+        img_name = f
+        img_path = ori_data_path + f
+        img = cv2.imread(img_path)
+    
+        gray=cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        resized_arr = cv2.resize(gray, (config.input_size, config.input_size))
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        equalized = clahe.apply(resized_arr)
+        
+        aug_img=rotateImage(equalized,random.randint(0,60) )
+        if random.randint(0,1)==1:
+            aug_img=randomZoom(aug_img)
+    
+    cv2.imwrite(save_path + img_name, aug_img)
 
 def test_single_image():
     save_path = '/home/hci-a4000/TIN/covid2022/TrainSet_Preprocessed/TrainSet_Preprocessed/'

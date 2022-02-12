@@ -3,7 +3,6 @@ from albumentations.pytorch import ToTensorV2
 from config import config
 import copy
 import matplotlib.pyplot as plt
-
 # transforms.RandomAffine(30, scale=(0.8,1.2), shear=[-15,15,-15,15]),
 
 def get_augmentation(phase):
