@@ -21,6 +21,8 @@ from dataset import CXR_Dataset
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
+from ImageEnhancement.gammaeql import gamma_correction_auto
+
 def showimages(x,coloums=30,row=3,col=False):
     fig=plt.figure(figsize=(30, 3))
     columns = coloums; rows = row
@@ -121,7 +123,21 @@ def test_single_image():
         # cv2.waitKey(0)
         
         cv2.imwrite(save_path + img_name, 255*gcn_numpy)
+
+def test_gamma_single_image():
+    save_path = '/home/hci-a4000/TIN/covid2022/TrainSet_Gamma/TrainSet_Gamma/'
+    ori_data_path = '/home/hci-a4000/TIN/covid2022/TrainSet/TrainSet/'
+
+    
+    onlyfiles = [f for f in listdir(ori_data_path) if isfile(join(ori_data_path, f))]
+    for f in onlyfiles:
+        img_name = f
+        img_path = ori_data_path + f
+        example = cv2.imread(img_path)
+
+        gammaeql_img = gamma_correction_auto(example)
         
+        cv2.imwrite(save_path + img_name, gammaeql_img)
 
 if __name__ == '__main__':
-    test_single_image()
+    test_gamma_single_image()
