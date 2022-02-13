@@ -82,7 +82,7 @@ class CXR_Dataset_Test(Dataset):
 
 class CXR_Dataset(Dataset):
     def __init__(self, df, transform=None, crop=False):
-        self.NUM_CLASSES = config.CLASSES
+        self.NUM_CLASSES = config.N_CLASSES
         self.crop = crop
         # Set of images for each class
         self.image_names = df['ImageFile']
@@ -149,7 +149,7 @@ class CXR_Dataset(Dataset):
 
 class MetaCXR_Dataset(Dataset):
     def __init__(self, df, transform=None, crop=False):
-        self.NUM_CLASSES = config.CLASSES
+        self.NUM_CLASSES = config.N_CLASSES
         self.crop = crop
         # Set of images for each class
         self.image_names = df['ImageFile']

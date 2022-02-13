@@ -92,7 +92,7 @@ def hist_rotate_zoom_aug():
     
     cv2.imwrite(save_path + img_name, aug_img)
 
-def test_single_image():
+def test_global_contrast_norm():
     save_path = '/home/hci-a4000/TIN/covid2022/TrainSet_Preprocessed/TrainSet_Preprocessed/'
     ori_data_path = '/home/hci-a4000/TIN/covid2022/TrainSet/TrainSet/'
 
@@ -124,7 +124,7 @@ def test_single_image():
         
         cv2.imwrite(save_path + img_name, 255*gcn_numpy)
 
-def test_gamma_single_image():
+def test_gamma():
     save_path = '/home/hci-a4000/TIN/covid2022/TrainSet_Gamma/TrainSet_Gamma/'
     ori_data_path = '/home/hci-a4000/TIN/covid2022/TrainSet/TrainSet/'
 
@@ -140,4 +140,4 @@ def test_gamma_single_image():
         cv2.imwrite(save_path + img_name, gammaeql_img)
 
 if __name__ == '__main__':
-    test_gamma_single_image()
+    test_gamma()

@@ -25,7 +25,7 @@ class config():
     continue_train = False
     batch_size = 16
     optimizer = 'adam'
-    scheduler = 'cosine'
+    scheduler = 'steprl'
     input_size = 300
     worker = 2
     num_class = 2

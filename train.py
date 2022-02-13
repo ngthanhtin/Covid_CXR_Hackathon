@@ -88,8 +88,8 @@ def test(model, val_loader):
 
 def main():
     
-    path = '../TrainSet_Preprocessed/'
-    image_path = path + 'TrainSet_Preprocessed/'
+    path = '../TrainSet_Gamma/'
+    image_path = path + 'TrainSet_Gamma/'
     metadata_path = config.metadata_path
     metadata_df = pd.read_excel(metadata_path)
     # for col_name in metadata_df.columns: 
@@ -121,7 +121,7 @@ def main():
                               shuffle=True, num_workers=8, pin_memory=True)
 
     val_dataset = CXR_Dataset(val_df, transform=get_augmentation(phase='valid'))              
-    val_loader = DataLoader(dataset=val_dataset, batch_size=config.batch_size,
+    val_loader = DataLoader(dataset=val_dataset, batch_size=config.batch_size//2,
                              shuffle=False, num_workers=8, pin_memory=True)
 
     print('********************load data succeed!********************')
@@ -178,8 +178,8 @@ def main():
         #             'epoch': epoch
         #                 }, config.path_model_pretrained+ '_last.pt')
         
-        if acc > best_acc:
-            best_acc = acc
+        if balanced_acc > best_acc:
+            best_acc = balanced_acc
             torch.save({
                     'model_state_dict': classifier.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
