@@ -17,68 +17,30 @@ import glob
 from config import config
 
 class CXR_Dataset_Test(Dataset):
-    def __init__(self, df, transform=None, crop=False):
-        self.NUM_CLASSES = config.CLASSES
-        self.crop = crop
-        # Set of images for each class
-        self.image_names = df['ImageFile']
-        self.labels = df['Prognosis']
-
+    def __init__(self, image_path, transform=None, crop=False):
+        self.NUM_CLASSES = config.N_CLASSES
+        self.image_names = [file for file in glob.glob(image_path + '/*.png')]
         self.transform = transform
 
     def __getitem__(self, index):
-        """
-        Args:
-            index: the index of item
-
-        Returns:
-            image and its labels
-        """
-        def __one_hot_encode(l):
-            v = [0] * self.NUM_CLASSES
-            v[l] = 1
-            return v
-
-        image_name, label = self.image_names[index], self.labels[index]
-        label = __one_hot_encode(label)
-        name = image_name.split("/")[-1]
+        image_name = None
+        image_name = self.image_names[index]
         
-#         image2=None
+        assert image_name is not None
         
-#         if self.crop:
-#             try:
-#                 src = ImageOps.grayscale(Image.open(image_name).convert('RGB'))
-#                 tmp = np.array(src).astype(np.uint8)
-# #                 tmp = cv2.cvtColor(src, cv2.COLOR_BGR2GRAY)
-#             except cv2.error:
-#                 print(image_name)
-#             newcrop = crop_with_argwhere(tmp)
-#             crop_rgb = ImageOps.grayscale(Image.fromarray(cv2.cvtColor(newcrop,cv2.COLOR_GRAY2RGB)))
-#             img = preprocess(crop_rgb)
-#             arr = (img.squeeze(0).numpy()*255).astype(np.uint8)
-#             recrop = Image.fromarray(arr).resize((480,480))
-#             image2 = recrop.convert('RGB')
-        
-
-        # image = Image.open(image_name).convert('RGB')
         image = cv2.imread(image_name)
         if image is None:
             print(image_name)
             
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        
+
         if self.transform is not None:
-            image = self.transform(image)
-#             if image2 is not None:
-#                 image2 = self.transform(image2)
+            image = self.transform(image=image)["image"]
         
-        
-#         print(image_name.split("/")[-1])
-        return image, torch.FloatTensor(label)
+        return image
 
     def __len__(self):
         return len(self.image_names)
-
 
 class CXR_Dataset(Dataset):
     def __init__(self, df, transform=None, crop=False):

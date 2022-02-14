@@ -113,8 +113,6 @@ def main():
     image_path = path + 'TrainSet_Gamma/'
     metadata_path = config.metadata_path
     metadata_df = pd.read_excel(metadata_path)
-    # for col_name in metadata_df.columns: 
-    #     print(col_name, metadata_df[col_name].count())
     metadata_df['ImageFile'] = image_path+metadata_df['ImageFile']
     
     selected_columns = metadata_df[['ImageFile', 'Prognosis']]
@@ -148,7 +146,7 @@ def main():
     print('********************load data succeed!********************')
     print('********************load model********************')
 
-    classifier = CXRClassifier(n_labels=config.N_CLASSES).to(config.device)
+    classifier = CXRClassifier(n_labels=config.N_CLASSES, model_name=config.model_name).to(config.device)
 
     loss_func = torch.nn.BCEWithLogitsLoss()
     # loss_func = torch.nn.CrossEntropyLoss()
