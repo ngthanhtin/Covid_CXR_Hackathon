@@ -24,7 +24,10 @@ from models import CXRClassifier
 from dataset import CXR_Dataset_Test, CXR_Dataset
 from augmentation import get_augmentation
 from config import config
-from torch.utils.tensorboard import SummaryWriter
+
+import wandb
+
+wandb.login()
 
 def seed_everything(seed):
     random.seed(seed)
@@ -39,6 +42,7 @@ seed_everything(1024)
 
 def train(model, loss_func, train_loader, optimizer, epoch, scheduler):
     model.train()
+    running_loss = None
     for batch_idx, (data, labels) in tqdm(enumerate(train_loader),total=len(train_loader)):
         data, labels = data.to(config.device), labels.to(config.device)
         optimizer.zero_grad()
@@ -48,11 +52,22 @@ def train(model, loss_func, train_loader, optimizer, epoch, scheduler):
         optimizer.step()
         if batch_idx % 20 == 0:
             print("Epoch {} Iteration {}: Loss = {}".format(epoch, batch_idx, loss))
+        if running_loss is None:
+            running_loss = loss.item()
+        else:
+            running_loss = running_loss * 0.99 + loss.item()*0.01
+    
+    print("Epoch {} Train Loss: {:.4f}".format(epoch, running_loss))
+
     if scheduler is not None:
         scheduler.step()
+    
+    return running_loss
 
-def test(model, val_loader):
+def valid(model, loss_func, val_loader, epoch):
     model.eval()
+    loss_sum = 0.
+    sample_num = 0
     correct=0.0
     val_data_size = len(val_loader.dataset)
     
@@ -64,6 +79,9 @@ def test(model, val_loader):
             print('testing process:', batch_idx)
         data, labels = data.to(config.device), labels.to(config.device)
         output = model(data)
+        loss = loss_func(output, labels)
+        loss_sum += loss.item()*labels.shape[0]
+        sample_num += labels.shape[0]
 
         pred= output.data.cpu()
         
@@ -75,6 +93,9 @@ def test(model, val_loader):
 
         correct+=float(np.sum(preds_labels==gt_labels))
 
+    print("Epoch {} Valid Loss: {:.4f}".format(epoch, loss_sum/sample_num))
+    valid_loss = loss_sum/sample_num
+
     preds_global_labels=torch.max(pred_global,dim=-1)[1].cpu().numpy()
     gt_global_labels=torch.max(gt_global, dim=-1)[1].cpu().numpy()
     f1 = f1_score(gt_global_labels, preds_global_labels, average='weighted')
@@ -84,12 +105,12 @@ def test(model, val_loader):
     balanced_acc = (recall+specificity)/2
     # print(classification_report(gt_global_labels,preds_global_labels,labels=[0,1,2,3]))
 
-    return correct/val_data_size, f1, recall, specificity, balanced_acc
+    return correct/val_data_size, f1, recall, specificity, balanced_acc, valid_loss
 
 def main():
     
-    path = '../TrainSet_Gamma/'
-    image_path = path + 'TrainSet_Gamma/'
+    path = '../TrainSet/'
+    image_path = path + 'TrainSet/'
     metadata_path = config.metadata_path
     metadata_df = pd.read_excel(metadata_path)
     # for col_name in metadata_df.columns: 
@@ -156,15 +177,14 @@ def main():
         classifier.load_state_dict(checkpoint['model_state_dict'])
     
     classifier.to(config.device)
-    # writer = SummaryWriter(config.logpath)
 
     best_acc = 0.0
     for epoch in range(config.start_epoch, config.train_number_epochs):
         print('*******training!*********')
-        train(classifier, loss_func, train_loader, optimizer, epoch, scheduler)
+        loss = train(classifier, loss_func, train_loader, optimizer, epoch, scheduler)
         
         print('*******testing!*********')
-        acc, f1, recall, specificity, balanced_acc = test(classifier, val_loader)
+        acc, f1, recall, specificity, balanced_acc, valid_loss = valid(classifier, loss_func, val_loader, epoch)
         
         print("Epoch {}, acc: {:.4f}, f1_score: {:.4f}, recall: {:.4f}, specificity: {:.4f}, \
             balanced acc: {:.4f}".format(epoch, acc, f1, recall, specificity, balanced_acc)) 
@@ -188,11 +208,15 @@ def main():
                         }, config.path_model_pretrained+ '_best.pt')
 
 
-        # writer.add_scalar('Accuracy', acc, epoch)
-
-
+        wandb.log({"Train Loss": loss})
+        wandb.log({"Valid Loss": valid_loss})
+        wandb.log({"Accuracy": acc})
 
 
 
 if __name__ == "__main__":
+    run = wandb.init(project='Covid2022', 
+                 job_type='Train',
+                 anonymous='must')
     main()
+    run.finish()
