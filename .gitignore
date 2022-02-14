@@ -3,3 +3,4 @@ logs/
 notebooks/
 pretrained_models/
 output_images/
+wandb/
