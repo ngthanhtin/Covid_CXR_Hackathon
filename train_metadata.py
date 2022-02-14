@@ -88,8 +88,8 @@ def test(model, val_loader):
 
 def main():
     
-    path = '../TrainSet_Preprocessed/'
-    image_path = path + 'TrainSet_Preprocessed/'
+    path = '../TrainSet_Gamma/'
+    image_path = path + 'TrainSet_Gamma/'
     metadata_path = config.metadata_path
     metadata_df = pd.read_excel(metadata_path)
     # for col_name in metadata_df.columns: 
