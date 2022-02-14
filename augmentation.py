@@ -8,7 +8,7 @@ def get_augmentation(phase):
     if phase == "train":
         return  A.Compose([
                     A.Resize(height=config.input_size, width=config.input_size),
-                    A.CenterCrop(height=256, width=256),
+                    A.CenterCrop(height=224, width=224),
                     A.ToGray(p=0.01),
                     A.OneOf([
                        A.GaussNoise(var_limit=[10, 50]),
@@ -34,7 +34,7 @@ def get_augmentation(phase):
     elif phase in ['test','valid']:
         return A.Compose([
             A.Resize(height=config.input_size, width=config.input_size),
-            A.CenterCrop(height=256, width=256),
+            A.CenterCrop(height=224, width=224),
             A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             # A.Normalize(),
             ToTensorV2()
