@@ -3,6 +3,7 @@ import torchvision
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
+import timm
 
 sigmoid = nn.Sigmoid()
 
@@ -30,12 +31,13 @@ class MetaCXR_Classifier(nn.Module):
         super(MetaCXR_Classifier, self).__init__()
         self.n_meta_features = n_meta_features
         self.backbone = models.densenet121(pretrained=True)
+
         self.dropouts = nn.ModuleList([
             nn.Dropout(0.5) for _ in range(5)
         ])
         
         in_ch = self.backbone.classifier.in_features
-    
+
         if n_meta_features > 0:
             self.meta = nn.Sequential(
                 nn.Linear(n_meta_features, n_meta_dim[0]),

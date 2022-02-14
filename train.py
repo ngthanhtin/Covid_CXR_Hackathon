@@ -12,7 +12,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import sklearn.metrics
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GroupKFold, StratifiedKFold
 from sklearn.metrics import roc_auc_score, confusion_matrix, roc_curve, auc, f1_score, classification_report
 from tqdm import tqdm
 import random
@@ -109,8 +109,8 @@ def valid(model, loss_func, val_loader, epoch):
 
 def main():
     
-    path = '../TrainSet/'
-    image_path = path + 'TrainSet/'
+    path = '../TrainSet_Gamma/'
+    image_path = path + 'TrainSet_Gamma/'
     metadata_path = config.metadata_path
     metadata_df = pd.read_excel(metadata_path)
     # for col_name in metadata_df.columns: 

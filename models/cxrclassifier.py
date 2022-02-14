@@ -18,7 +18,6 @@ class CXRClassifier(nn.Module):
 
         elif config.model_name == 'resnet50':
             self.backbone = models.resnet50(pretrained=True)
-            self.backbone = models.resnext50_32x4d(pretrained=True)
             in_feature = self.backbone.fc.in_features
             self.backbone.fc = torch.nn.Sequential(
                     torch.nn.Linear(in_feature, n_labels))
@@ -32,13 +31,22 @@ class CXRClassifier(nn.Module):
             self.cls_head = nn.Linear(1024, n_labels, bias=True)
     
     def forward(self, x):
-        x = self.backbone.features(x)
-        x = F.relu(x)
-        x = F.dropout(x, p=0.5, training=self.training)
-        # x = self.cls_head(x)
-        x = F.adaptive_avg_pool2d(x, (1, 1))
-        x = torch.flatten(x, 1)
-        x = self.backbone.classifier(x)
+        if config.model_name == 'swin224':
+            x = self.backbone(x)
+            x = F.relu(x)
+            x = F.dropout(x, p=0.5, training=self.training)
+            x = self.cls_head(x)
+        
+        if config.model_name == 'densenet121':
+            x = self.backbone.features(x)
+            x = F.relu(x)
+            x = F.dropout(x, p=0.5, training=self.training)
+            x = F.adaptive_avg_pool2d(x, (1, 1))
+            x = torch.flatten(x, 1)
+            x = self.backbone.classifier(x)
+        
+        if config.model_name == 'resnet50':
+            x = self.backbone(x)
         
         return x
 
