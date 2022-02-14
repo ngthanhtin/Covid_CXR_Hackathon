@@ -27,6 +27,7 @@ class config():
     optimizer = 'adam'
     scheduler = 'steprl'
     input_size = 256
+    crop_size = 224
     worker = 2
     num_class = 2
     fold = 4

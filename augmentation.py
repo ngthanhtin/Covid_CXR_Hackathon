@@ -4,11 +4,11 @@ from config import config
 import copy
 import matplotlib.pyplot as plt
 
-def get_augmentation(phase):
+def get_augmentation(phase, input_size, crop_size):
     if phase == "train":
         return  A.Compose([
-                    A.Resize(height=config.input_size, width=config.input_size),
-                    A.CenterCrop(height=224, width=224),
+                    A.Resize(height=input_size, width=input_size),
+                    A.CenterCrop(height=crop_size, width=crop_size),
                     A.ToGray(p=0.01),
                     A.OneOf([
                        A.GaussNoise(var_limit=[10, 50]),
@@ -33,8 +33,8 @@ def get_augmentation(phase):
                 ])
     elif phase in ['test','valid']:
         return A.Compose([
-            A.Resize(height=config.input_size, width=config.input_size),
-            A.CenterCrop(height=224, width=224),
+            A.Resize(height=input_size, width=input_size),
+            A.CenterCrop(height=crop_size, width=crop_size),
             A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
             # A.Normalize(),
             ToTensorV2()

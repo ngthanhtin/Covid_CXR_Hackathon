@@ -137,11 +137,11 @@ def main():
     print(train_df.Prognosis.value_counts())
 
 
-    train_dataset = CXR_Dataset(train_df, transform=get_augmentation(phase='train'))
+    train_dataset = CXR_Dataset(train_df, transform=get_augmentation('train', config.input_size, config.crop_size))
     train_loader = DataLoader(dataset=train_dataset, batch_size=config.batch_size,
                               shuffle=True, num_workers=8, pin_memory=True)
 
-    val_dataset = CXR_Dataset(val_df, transform=get_augmentation(phase='valid'))              
+    val_dataset = CXR_Dataset(val_df, transform=get_augmentation('valid', config.input_size, config.crop_size))              
     val_loader = DataLoader(dataset=val_dataset, batch_size=config.batch_size//2,
                              shuffle=False, num_workers=8, pin_memory=True)
 
